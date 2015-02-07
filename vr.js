@@ -7,17 +7,26 @@ module.exports = function(game, opts) {
   return new VRPlugin(game, opts);
 };
 module.exports.pluginInfo = {
-  loadAfter: ['game-shell-fps-camera'] // TODO: other cameras?
+  loadAfter: ['game-shell-fps-camera', 'voxel-shader']
 };
 
 function VRPlugin(game, opts) {
   this.game = game;
   this.camera = game.plugins.get('game-shell-fps-camera');
+  if (!this.camera) throw new Error('voxel-vr requires game-shell-fps-camera plugin'); // TODO: other cameras
+  this.shader = game.plugins.get('voxel-shader');
+  if (!this.shader) throw new Error('voxel-vr requires voxel-shader plugin');
   this.currentEye = undefined;
 
   // defaults if no VR device
   this.translateLeft = [-0.05, 0, 0];
   this.translateRight = [+0.05, 0, 0];
+  this.FOVs = {
+    upDegrees: 45,
+    downDegrees: 45,
+    leftDegrees: 45,
+    rightDegrees: 45
+  };
 
   this.enable();
 }
@@ -30,14 +39,23 @@ VRPlugin.prototype.enable = function() {
   this.game.shell.removeAllListeners('render');
   this.game.shell.on('render', this.renderVR.bind(this));
   this.camera.on('view', this.onView = this.viewVR.bind(this));
+
+  this.oldUpdateProjectionMatrix = this.shader.listeners('updateProjectionMatrix');
+  this.shader.removeAllListeners('updateProjectionMatrix');
+  this.shader.on('updateProjectionMatrix', this.onPerspective = this.perspectiveVR.bind(this));
+
   this.scanDevices()
 };
 
 VRPlugin.prototype.disable = function() {
   this.game.shell.removeAllListeners('render');
-
   for (var i = 0; i < this.oldRenders.length; i += 1) {
     this.game.shell.on('render', this.oldRenders[i]);
+  }
+
+  this.shader.removeAllListeners('updateProjectionMatrix');
+  for (var i = 0; i < this.oldUpdateProjectionMatrix.length; i += 1) {
+    this.shader.on('updateProjectionMatrix', this.oldUpdateProjectionMatrix[i]);
   }
 };
 
@@ -66,6 +84,49 @@ VRPlugin.prototype.scanDevices = function() {
   }, function(err) {
     console.log('voxel-vr error in getVRDevices: ',err);
   });
+};
+
+// TODO: use from mat4 https://github.com/stackgl/gl-mat4/pull/3
+/**
+ * Generates a perspective projection matrix with the given field of view.
+ * This is primarily useful for generating projection matrices to be used
+ * with the still experiemental WebVR API.
+ *
+ * @param {mat4} out mat4 frustum matrix will be written into
+ * @param {number} fov Object containing the following values: upDegrees, downDegrees, leftDegrees, rightDegrees
+ * @param {number} near Near bound of the frustum
+ * @param {number} far Far bound of the frustum
+ * @returns {mat4} out
+ */
+var perspectiveFromFieldOfView = function (out, fov, near, far) {
+    var upTan = Math.tan(fov.upDegrees * Math.PI/180.0),
+        downTan = Math.tan(fov.downDegrees * Math.PI/180.0),
+        leftTan = Math.tan(fov.leftDegrees * Math.PI/180.0),
+        rightTan = Math.tan(fov.rightDegrees * Math.PI/180.0),
+        xScale = 2.0 / (leftTan + rightTan),
+        yScale = 2.0 / (upTan + downTan);
+
+    out[0] = xScale;
+    out[1] = 0.0;
+    out[2] = 0.0;
+    out[3] = 0.0;
+    out[4] = 0.0;
+    out[5] = yScale;
+    out[6] = 0.0;
+    out[7] = 0.0;
+    out[8] = -((leftTan - rightTan) * xScale * 0.5);
+    out[9] = ((upTan - downTan) * yScale * 0.5);
+    out[10] = far / (near - far);
+    out[11] = -1.0;
+    out[12] = 0.0;
+    out[13] = 0.0;
+    out[14] = (far * near) / (near - far);
+    out[15] = 0.0;
+    return out;
+};
+
+VRPlugin.prototype.perspectiveVR = function(out) {
+  perspectiveFromFieldOfView(out, this.FOVs, this.shader.cameraNear, this.shader.cameraFar);
 };
 
 VRPlugin.prototype.viewVR = function(out) {
