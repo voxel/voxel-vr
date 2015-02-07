@@ -1,0 +1,6 @@
+# voxel-vr
+
+## License
+
+MIT
+
