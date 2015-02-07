@@ -8,7 +8,7 @@ module.exports = function(game, opts) {
   return new VRPlugin(game, opts);
 };
 module.exports.pluginInfo = {
-  loadAfter: ['game-shell-fps-camera', 'voxel-shader']
+  loadAfter: ['game-shell-fps-camera', 'voxel-shader', 'voxel-fullscreen']
 };
 
 function VRPlugin(game, opts) {
@@ -17,6 +17,9 @@ function VRPlugin(game, opts) {
   if (!this.camera) throw new Error('voxel-vr requires game-shell-fps-camera plugin'); // TODO: other cameras
   this.shader = game.plugins.get('voxel-shader');
   if (!this.shader) throw new Error('voxel-vr requires voxel-shader plugin');
+  this.fullscreen = game.plugins.get('voxel-fullscreen'); // optional
+
+  this.hmdvrDevice = undefined;
   this.currentEye = undefined;
 
   this.projectionMatrixLeft = mat4.create();
@@ -54,7 +57,14 @@ VRPlugin.prototype.enable = function() {
   this.shader.removeAllListeners('updateProjectionMatrix');
   this.shader.on('updateProjectionMatrix', this.onPerspective = this.perspectiveVR.bind(this));
 
-  this.scanDevices()
+  if (this.fullscreen) {
+    if (this.requestFlags)  {
+      this.oldRequestFlags = this.fullscreen.requestFlags;
+      this.fullscreen.requestFlags = this.requestFlags;
+    }
+  }
+
+  this.scanDevices();
 };
 
 VRPlugin.prototype.disable = function() {
@@ -66,6 +76,13 @@ VRPlugin.prototype.disable = function() {
   this.shader.removeAllListeners('updateProjectionMatrix');
   for (var i = 0; i < this.oldUpdateProjectionMatrix.length; i += 1) {
     this.shader.on('updateProjectionMatrix', this.oldUpdateProjectionMatrix[i]);
+  }
+
+  if (this.fullscreen) {
+    if (this.oldRequestFlags) {
+      // no longer fullscreen to the VR device
+      this.fullscreen.requestFlags = this.oldRequestFlags;
+    }
   }
 };
 
@@ -95,6 +112,16 @@ VRPlugin.prototype.scanDevices = function() {
         // TODO: .getMaximumEyeFieldOfView
 
         self.shader.updateProjectionMatrix(); // -> perspectiveVR
+
+        // voxel-fullscreen to the VR device
+        if (self.fullscreen
+          //&& device.hardwareUnitId !== 'polyfill' // hack to exclude non-real (virtual?) devices, so original flags are preserved
+          ) {
+            self.requestFlags = { vrDisplay: device };
+            self.oldRequestFlags = self.fullscreen.requestFlags;
+            self.fullscreen.requestFlags = self.requestFlags;
+        }
+        self.hmdvrDevice = device;
 
         break; // use only first HMD device found TODO: configurable multiple devices
       }
