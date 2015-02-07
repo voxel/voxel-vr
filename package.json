@@ -1,6 +1,6 @@
 {
   "name": "voxel-vr",
-  "description": "",
+  "description": "WebVR voxel.js plugin",
   "version": "0.0.1",
   "main": "vr.js",
   "repository": {
@@ -10,6 +10,8 @@
   "keywords": [
     "voxel",
     "vr",
+    "webvr",
+    "oculus",
     "plugin"
   ],
   "dependencies": {
