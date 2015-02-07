@@ -2,13 +2,14 @@
   "name": "voxel-vr",
   "description": "",
   "version": "0.0.1",
-  "main": "voxel-vr.js",
+  "main": "vr.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:deathcap/voxel-vr.git"
   },
   "keywords": [
     "voxel",
+    "vr",
     "plugin"
   ],
   "dependencies": {
