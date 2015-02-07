@@ -16,7 +16,8 @@
   ],
   "dependencies": {
     "webvr-polyfill": "0.0.1",
-    "gl-mat4": "^1.0.3"
+    "gl-mat4": "^1.0.3",
+    "shallow-copy": "0.0.1"
   },
   "license": "MIT"
 }

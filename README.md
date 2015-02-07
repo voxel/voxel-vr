@@ -10,7 +10,7 @@ and [game-shell-fps-camera](https://github.com/deathcap/game-shell-fps-camera),
 load with [voxel-plugins](https://github.com/deathcap/voxel-plugins).
 
 Replaces the `render` handler of [gl-now](https://github.com/stackgl/gl-now) to
-emit `gl-render` twice per tick, one for each eye, with the viewport and view matrices
+emit `gl-render` twice per tick, one for each eye, with the viewport and matrices
 set appropriately. If used on a WebVR-enabled browser (experimental Firefox or Chrome),
 or on a platform supported by [webvr-polyfill](https://github.com/borismus/webvr-polyfill),
 will attempt to use VR settings from a head-mounted VR device.

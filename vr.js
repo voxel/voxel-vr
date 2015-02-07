@@ -2,6 +2,7 @@
 
 require('webvr-polyfill'); // fills navigator.getVRDevices(), etc.
 var mat4 = require('gl-mat4');
+var shallow_copy = require('shallow-copy');
 
 module.exports = function(game, opts) {
   return new VRPlugin(game, opts);
@@ -17,6 +18,9 @@ function VRPlugin(game, opts) {
   this.shader = game.plugins.get('voxel-shader');
   if (!this.shader) throw new Error('voxel-vr requires voxel-shader plugin');
   this.currentEye = undefined;
+
+  this.projectionMatrixLeft = mat4.create();
+  this.projectionMatrixRight = mat4.create();
 
   // defaults if no VR device
   this.translateLeft = [-0.05, 0, 0];
@@ -79,12 +83,18 @@ VRPlugin.prototype.scanDevices = function() {
       var device = devices[i];
 
       if (device instanceof HMDVRDevice) {
+        // translation vector per eye
         self.translateLeft = xyz2v(device.getEyeTranslation('left'));
         self.translateRight = xyz2v(device.getEyeTranslation('right'));
 
-        self.FOVsLeft = device.getRecommendedEyeFieldOfView('left');
-        self.FOVsRight = device.getRecommendedEyeFieldOfView('right');
+        // field of views per eye
+        // Note: using shallow_copy since left and right might be same object (webvr-polyfill bug?)
+        // but we want to allow adjusting them individually
+        self.FOVsLeft = shallow_copy(device.getRecommendedEyeFieldOfView('left'));
+        self.FOVsRight = shallow_copy(device.getRecommendedEyeFieldOfView('right'));
         // TODO: .getMaximumEyeFieldOfView
+
+        self.shader.updateProjectionMatrix(); // -> perspectiveVR
 
         break; // use only first HMD device found TODO: configurable multiple devices
       }
@@ -133,13 +143,15 @@ var perspectiveFromFieldOfView = function (out, fov, near, far) {
     return out;
 };
 
+// Compute the projection matrix, when the viewport changes
 VRPlugin.prototype.perspectiveVR = function(out) {
-  var fovs = (this.currentEye === 0 ? this.FOVsLeft : this.FOVsRight);
-
-  // TODO: store per eye
-  perspectiveFromFieldOfView(out, fovs, this.shader.cameraNear, this.shader.cameraFar);
+  // Save the matrix for each eye, locally
+  perspectiveFromFieldOfView(this.projectionMatrixLeft, this.FOVsLeft, this.shader.cameraNear, this.shader.cameraFar);
+  perspectiveFromFieldOfView(this.projectionMatrixRight, this.FOVsRight, this.shader.cameraNear, this.shader.cameraFar);
+  // out sets voxel-shader .projectionMatrix, but we have to (re)set it individually for each eye in renderVR below
 };
 
+// Compute the view matrix, each frame
 VRPlugin.prototype.viewVR = function(out) {
   var eye = this.currentEye;
 
@@ -148,17 +160,13 @@ VRPlugin.prototype.viewVR = function(out) {
   } else {
     mat4.translate(out, out, this.translateRight);
   }
-
-  // TODO: apply perspective here?? each frame, each eye
 };
 
+// Render scene twice, once for each eye (replaces gl-now renderGLNow(t))
 VRPlugin.prototype.renderVR = function(t) {
   var shell = this.game.shell;
   var scale = this.game.shell.scale;
   var gl = shell.gl;
-
-  // render scene twice, once for each eye
-  // replaces gl-now renderGLNow(t)
 
   //Bind default framebuffer
   gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -180,13 +188,14 @@ VRPlugin.prototype.renderVR = function(t) {
   // Left eye
   this.currentEye = 0
   gl.viewport(0, 0, (shell._width / scale / 2)|0, (shell._height / scale)|0)
+  mat4.copy(this.shader.projectionMatrix, this.projectionMatrixLeft);
   shell.emit("gl-render", t)
 
-  // TODO: perspective projection retrieve per eye
 
   // Right eye
   this.currentEye = 1
   gl.viewport((shell._width / scale / 2)|0, 0, (shell._width / scale / 2)|0, (shell._height / scale)|0)
+  mat4.copy(this.shader.projectionMatrix, this.projectionMatrixRight);
   shell.emit("gl-render", t)
 
   this.currentEye = undefined
