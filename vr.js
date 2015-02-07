@@ -16,9 +16,9 @@ function VRPlugin(game, opts) {
   this.camera = game.plugins.get('game-shell-fps-camera');
   this.currentEye = undefined;
 
-  // TODO: from WebVR getEyeTranslation .x .y .z
-  this.translateLeft = [-0.03, 0, 0];
-  this.translateRight = [+0.03, 0, 0];
+  // defaults if no VR device
+  this.translateLeft = [-0.05, 0, 0];
+  this.translateRight = [+0.05, 0, 0];
 
   this.enable();
 }
@@ -31,6 +31,7 @@ VRPlugin.prototype.enable = function() {
   this.game.shell.removeAllListeners('render');
   this.game.shell.on('render', this.renderVR.bind(this));
   this.camera.on('view', this.onView = this.viewVR.bind(this));
+  this.scanDevices()
 };
 
 VRPlugin.prototype.disable = function() {
@@ -39,6 +40,33 @@ VRPlugin.prototype.disable = function() {
   for (var i = 0; i < this.oldRenders.length; i += 1) {
     this.game.shell.on('render', this.oldRenders[i]);
   }
+};
+
+var xyz2v = function(xyz) {
+  return [xyz.x, xyz.y, xyz.z]
+};
+
+VRPlugin.prototype.scanDevices = function() {
+  if (!('getVRDevices' in navigator)) return; // should be polyfilled by webvr-polyfill, but just in case
+
+  var self = this;
+
+  navigator.getVRDevices().then(function(devices) {
+    for (var i = 0; i < devices.length; i += 1) {
+      var device = devices[i];
+
+      if (device instanceof HMDVRDevice) {
+        self.translateLeft = xyz2v(device.getEyeTranslation('left'));
+        self.translateRight = xyz2v(device.getEyeTranslation('right'));
+
+        // TODO: .getRecommendedEyeFieldOfView
+
+        break; // use only first HMD device found TODO: configurable multiple devices
+      }
+    }
+  }, function(err) {
+    console.log('voxel-vr error in getVRDevices: ',err);
+  });
 };
 
 VRPlugin.prototype.viewVR = function(out) {
