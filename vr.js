@@ -21,7 +21,13 @@ function VRPlugin(game, opts) {
   // defaults if no VR device
   this.translateLeft = [-0.05, 0, 0];
   this.translateRight = [+0.05, 0, 0];
-  this.FOVs = {
+  this.FOVsLeft = {
+    upDegrees: 45,
+    downDegrees: 45,
+    leftDegrees: 45,
+    rightDegrees: 45
+  };
+  this.FOVsRight = {
     upDegrees: 45,
     downDegrees: 45,
     leftDegrees: 45,
@@ -76,7 +82,9 @@ VRPlugin.prototype.scanDevices = function() {
         self.translateLeft = xyz2v(device.getEyeTranslation('left'));
         self.translateRight = xyz2v(device.getEyeTranslation('right'));
 
-        // TODO: .getRecommendedEyeFieldOfView
+        self.FOVsLeft = device.getRecommendedEyeFieldOfView('left');
+        self.FOVsRight = device.getRecommendedEyeFieldOfView('right');
+        // TODO: .getMaximumEyeFieldOfView
 
         break; // use only first HMD device found TODO: configurable multiple devices
       }
@@ -126,7 +134,10 @@ var perspectiveFromFieldOfView = function (out, fov, near, far) {
 };
 
 VRPlugin.prototype.perspectiveVR = function(out) {
-  perspectiveFromFieldOfView(out, this.FOVs, this.shader.cameraNear, this.shader.cameraFar);
+  var fovs = (this.currentEye === 0 ? this.FOVsLeft : this.FOVsRight);
+
+  // TODO: store per eye
+  perspectiveFromFieldOfView(out, fovs, this.shader.cameraNear, this.shader.cameraFar);
 };
 
 VRPlugin.prototype.viewVR = function(out) {
@@ -138,8 +149,7 @@ VRPlugin.prototype.viewVR = function(out) {
     mat4.translate(out, out, this.translateRight);
   }
 
-  // TODO: use new 'VR-oriented' mat4.perspectiveFromFieldOfView
-  //  in https://github.com/toji/gl-matrix/commit/955bb55a48e4a484304cc487638f4ef18d60cd00
+  // TODO: apply perspective here?? each frame, each eye
 };
 
 VRPlugin.prototype.renderVR = function(t) {
@@ -171,6 +181,8 @@ VRPlugin.prototype.renderVR = function(t) {
   this.currentEye = 0
   gl.viewport(0, 0, (shell._width / scale / 2)|0, (shell._height / scale)|0)
   shell.emit("gl-render", t)
+
+  // TODO: perspective projection retrieve per eye
 
   // Right eye
   this.currentEye = 1
