@@ -1,11 +1,24 @@
 'use strict';
 
+require('webvr-polyfill'); // fills navigator.getVRDevices(), etc.
+var glm = require('gl-matrix');
+var mat4 = glm.mat4;
+
 module.exports = function(game, opts) {
   return new VRPlugin(game, opts);
+};
+module.exports.pluginInfo = {
+  loadAfter: ['game-shell-fps-camera'] // TODO: other cameras?
 };
 
 function VRPlugin(game, opts) {
   this.game = game;
+  this.camera = game.plugins.get('game-shell-fps-camera');
+  this.currentEye = undefined;
+
+  // TODO: from WebVR getEyeTranslation .x .y .z
+  this.translateLeft = [-0.03, 0, 0];
+  this.translateRight = [+0.03, 0, 0];
 
   this.enable();
 }
@@ -17,6 +30,7 @@ VRPlugin.prototype.enable = function() {
   this.oldRenders = this.game.shell.listeners('render');
   this.game.shell.removeAllListeners('render');
   this.game.shell.on('render', this.renderVR.bind(this));
+  this.camera.on('view', this.onView = this.viewVR.bind(this));
 };
 
 VRPlugin.prototype.disable = function() {
@@ -25,6 +39,19 @@ VRPlugin.prototype.disable = function() {
   for (var i = 0; i < this.oldRenders.length; i += 1) {
     this.game.shell.on('render', this.oldRenders[i]);
   }
+};
+
+VRPlugin.prototype.viewVR = function(out) {
+  var eye = this.currentEye;
+
+  if (eye === 0) {
+    mat4.translate(out, out, this.translateLeft);
+  } else {
+    mat4.translate(out, out, this.translateRight);
+  }
+
+  // TODO: use new 'VR-oriented' mat4.perspectiveFromFieldOfView
+  //  in https://github.com/toji/gl-matrix/commit/955bb55a48e4a484304cc487638f4ef18d60cd00
 };
 
 VRPlugin.prototype.renderVR = function(t) {
@@ -52,18 +79,15 @@ VRPlugin.prototype.renderVR = function(t) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
   }
 
-  //Set viewport for left eye
+  // Left eye
+  this.currentEye = 0
   gl.viewport(0, 0, (shell._width / scale / 2)|0, (shell._height / scale)|0)
-
-  //Render frame
   shell.emit("gl-render", t)
 
-  // TODO: transformation matrices, eye translation and fovs
-
-
-  //Set viewport for right eye
+  // Right eye
+  this.currentEye = 1
   gl.viewport((shell._width / scale / 2)|0, 0, (shell._width / scale / 2)|0, (shell._height / scale)|0)
-
-  //Render frame
   shell.emit("gl-render", t)
+
+  this.currentEye = undefined
 };

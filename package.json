@@ -13,6 +13,8 @@
     "plugin"
   ],
   "dependencies": {
+    "webvr-polyfill": "0.0.1",
+    "gl-matrix": "^2.2.1"
   },
   "license": "MIT"
 }
