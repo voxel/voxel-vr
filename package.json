@@ -1,7 +1,7 @@
 {
   "name": "voxel-vr",
   "description": "WebVR voxel.js plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "vr.js",
   "repository": {
     "type": "git",
