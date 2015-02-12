@@ -64,6 +64,8 @@ VRPlugin.prototype.enable = function() {
     }
   }
 
+  this.shader.updateProjectionMatrix();
+
   this.scanDevices();
 };
 
