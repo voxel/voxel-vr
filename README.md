@@ -5,7 +5,7 @@ WebVR voxel.js plugin
 ![screenshot](http://i.imgur.com/T0A5use.png "Screenshot")
 
 Renders the scene side by side in stereo 3D for use with WebVR.
-Requires [voxel-engine#ndarray](https://github.com/maxogden/voxel-engine/pull/103)
+Requires [voxel-engine-stackgl](hndarra://github.com/deathcap/voxel-engine-stackgl),
 and [game-shell-fps-camera](https://github.com/deathcap/game-shell-fps-camera),
 load with [voxel-plugins](https://github.com/deathcap/voxel-plugins).
 
