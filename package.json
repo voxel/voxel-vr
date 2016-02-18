@@ -15,7 +15,7 @@
     "plugin"
   ],
   "dependencies": {
-    "webvr-polyfill": "0.0.1",
+    "webvr-polyfill": "0.2.7",
     "gl-mat4": "^1.1.0",
     "shallow-copy": "0.0.1"
   },
